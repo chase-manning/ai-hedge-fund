@@ -2,7 +2,6 @@ import dotenv from "dotenv";
 import ORG, { AgentType } from "./agents/org";
 import getLlmRequest from "./utils/llm-request";
 import APPROVED_COMPANIES from "./app/approved-companies";
-import getCompanyFacts from "./financials/get-company-facts";
 import fs from "fs";
 import findEmployee from "./utils/find-employee";
 import debugLog from "./utils/debug-log";
