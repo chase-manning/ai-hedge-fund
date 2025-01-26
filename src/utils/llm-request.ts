@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import ORG, { AgentType } from "../agents/org";
 import { ChatCompletionMessageParam } from "openai/resources";
 import fs from "fs";
+import debugLog from "./debug-log";
 
 interface LlmResponse {
   status: "useTool" | "provideFinalReport" | "employeeRequest";
@@ -46,12 +47,14 @@ const getLlmRequest = async (
   }. You must respond to all queries in JSON format only. Your response should be in this format { "status": ["useTool"${
     agent.id !== ORG.id
       ? ` | "provideFinalReport"`
-      : ` | "endAllOperationsAndExitRuntimeHardTermination"`
+      : ` | "noMoreBuysOrSellsRequired"`
   }${
     agent.employees.length > 0 ? ` | "employeeRequest"` : ""
   } ], "internalMonologueShort": [your internal monologue about what you are thinking during this. Short version, one small sentense], "internalMonologueLong": [your internal monologue about what you are thinking during this. Long version, several paragraphs], "toolData": [a list of JSON data for each use of your tool. can be left blank if you are not using your tool], "report": [your final report to pass on to your manager, can be left blank if you are using your tool or contacting an employee], "employeeRequest": [JSON data for request to your employee. can be left blank if not requesting anything from your employee] }. You can take as many actions as you like, but only one at a time. After each action you will be fed the response, and then can choose another action. You may ask the same employee multiple requests, or multiple employees different requests, or use your tool as many times as you like in any order.`;
-  fs.appendFileSync("debug.txt", `\n${message}`);
   const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+  debugLog("🚀", `${agent.name} is making a request to the LLM`);
+  debugLog("Message", message);
+  debugLog("Request", requests[requests.length - 1]);
   const completion = await openai.chat.completions.create({
     messages: [
       {
@@ -79,6 +82,7 @@ const getLlmRequest = async (
   if (!response) {
     throw new Error("No status in response from the LLM");
   }
+  debugLog("Response", response);
 
   const jsonData = JSON.parse(response);
 

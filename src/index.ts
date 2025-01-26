@@ -4,55 +4,32 @@ import getLlmRequest from "./utils/llm-request";
 import APPROVED_COMPANIES from "./app/approved-companies";
 import getCompanyFacts from "./financials/get-company-facts";
 import fs from "fs";
+import findEmployee from "./utils/find-employee";
+import debugLog from "./utils/debug-log";
+import getToolData from "./utils/get-tool-data";
 
 dotenv.config();
 
-const findEmployee = (agent: AgentType, id: string): AgentType | null => {
-  if (agent.employees.length === 0) {
-    if (agent.id === id) {
-      return agent;
-    }
-    return null;
-  }
-
-  for (const employee of ORG.employees) {
-    const found = findEmployee(employee, id);
-    if (found) {
-      return found;
-    }
-  }
-
-  return null;
-};
-
 const employeeRequest = async (request: string[], employee: AgentType) => {
+  // If this is the first request, print the employee name
   if (request.length === 1) {
     console.log("");
     console.log(`====== ${employee.name} ======`);
   }
+
+  // Make the request to the LLM
   const response = await getLlmRequest(request, employee);
   const status = response.status;
-  if (!status) {
-    console.log("No response from the LLM");
-    return;
-  }
+  if (!status) throw new Error("No status in response");
+
+  // Handling employee requests
   if (status === "employeeRequest") {
     const requestData = response.employeeRequest;
-    if (!requestData) {
-      console.log(response);
-      throw new Error("No employee request data in response");
-    }
-
+    if (!requestData) throw new Error("No employee request data in response");
     const employeeId = requestData.employeeId;
-
     let newEmployee = findEmployee(ORG, employeeId);
-
-    if (!newEmployee) {
-      throw new Error(`Employee with id ${employeeId} not found`);
-    }
-
+    if (!newEmployee) throw new Error(`Employee ${employeeId} not found`);
     const request = requestData.request;
-
     console.log(`🗣️ "${newEmployee.name}, ${request}"`);
     const employeeResponse = await employeeRequest([request], newEmployee);
     const updatedRequest = [
@@ -63,62 +40,36 @@ const employeeRequest = async (request: string[], employee: AgentType) => {
     console.log("");
     console.log(`====== ${employee.name} ======`);
     return await employeeRequest(updatedRequest, employee);
-  } else if (status === "useTool") {
-    let toolDataList = response.toolData;
-    if (!toolDataList) {
-      console.log(response);
-      throw new Error("No tool data in response");
-    }
-    if (!Array.isArray(toolDataList)) {
-      toolDataList = [toolDataList];
-    }
-    const allToolData = [];
-    for (const toolData of toolDataList) {
-      if (employee.tool.id === "company-facts") {
-        const ticker = toolData.ticker;
-        if (!ticker) {
-          console.log(toolData);
-          throw new Error("No ticker in tool data");
-        }
-        console.log(
-          `🚀 ${employee.name} is getting company facts for ${ticker}`
-        );
-        const data = await getCompanyFacts(toolData.ticker);
-        allToolData.push(data);
-      } else if (employee.tool.id === "exchange") {
-        const action = toolData.action;
-        const ticker = toolData.ticker;
-        const amount = toolData.amount;
-        if (!action || !ticker || !amount) {
-          console.log(toolData);
-          throw new Error("Missing data in toolData");
-        }
-        console.log(
-          `🚀 ${action === "buy" ? "Buying" : "Selling"} ${amount} of ${ticker}`
-        );
-        allToolData.push({ action, ticker, amount });
-      } else {
-        throw new Error(`Unexpected tool: ${employee.tool.id}`);
-      }
-    }
+  }
+
+  // Handling tool usage
+  else if (status === "useTool") {
+    const allToolData = await getToolData(response, employee);
     const updatedRequest = [
       ...request,
       JSON.stringify(response),
       JSON.stringify(allToolData),
     ];
     return await employeeRequest(updatedRequest, employee);
-  } else if (status === "provideFinalReport") {
+  }
+
+  // Handling final report
+  else if (status === "provideFinalReport") {
     const report = response.report;
     console.log(`📝 Documenting findings and reporting back`);
-    if (!report) {
-      throw new Error("No report in response");
-    }
+    debugLog("Report", report.toString());
+    if (!report) throw new Error("No report in response");
+    return report.toString();
+  }
 
-    return report;
-  } else if (status === "endAllOperationsAndExitRuntimeHardTermination") {
+  // Handling end of operations
+  else if (status === "noMoreBuysOrSellsRequired") {
     console.log(`👋 ${employee.name} is clocking out`);
     return;
-  } else {
+  }
+
+  // Unexpected status
+  else {
     throw new Error(`Unexpected status: ${status}`);
   }
 };
