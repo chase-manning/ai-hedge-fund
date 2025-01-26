@@ -2,6 +2,8 @@
 
 A hedge fund of AI agents that work together to gather stock data, analyse it, and execute buy and sell orders based on the results.
 
+![Untitled Diagram drawio (1)](https://github.com/user-attachments/assets/11fbcbac-96e1-4909-bf3d-0f874a4ea278)
+
 The agents are structured in a similar way to a traditional organisation, with many employees reporting to the CEO. Each of the employees/agents have access to a tool which they can use to query real word stock data via [Financial Datasets](https://www.financialdatasets.ai/). The agents then summarise the data and report it back to the CEO. The agents can investigate whatever data they like though their tool, the CEO can talk with any employee at any time and request anything from them. After consideration and investigation the CEO will make a decision on what stocks to buy or sell.
 
 # Running the Agents
