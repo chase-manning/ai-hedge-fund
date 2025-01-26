@@ -24,18 +24,26 @@ const employeeRequest = async (request: string[], employee: AgentType) => {
 
   // Handling employee requests
   if (status === "employeeRequest") {
-    const requestData = response.employeeRequest;
-    if (!requestData) throw new Error("No employee request data in response");
-    const employeeId = requestData.employeeId;
-    let newEmployee = findEmployee(ORG, employeeId);
-    if (!newEmployee) throw new Error(`Employee ${employeeId} not found`);
-    const request = requestData.request;
-    console.log(`🗣️ "${newEmployee.name}, ${request}"`);
-    const employeeResponse = await employeeRequest([request], newEmployee);
+    const allResponses = [];
+    let requestDataList = response.employeeRequest;
+    if (!requestDataList)
+      throw new Error("No employee request data in response");
+    if (!Array.isArray(requestDataList)) {
+      requestDataList = [requestDataList];
+    }
+    for (const requestData of requestDataList) {
+      const employeeId = requestData.employeeId;
+      let newEmployee = findEmployee(ORG, employeeId);
+      if (!newEmployee) throw new Error(`Employee ${employeeId} not found`);
+      const request = requestData.request;
+      console.log(`🗣️ "${newEmployee.name}, ${request}"`);
+      const employeeResponse = await employeeRequest([request], newEmployee);
+      allResponses.push(`${newEmployee.name} Responded: ${employeeResponse}`);
+    }
     const updatedRequest = [
       ...request,
       JSON.stringify(response),
-      JSON.stringify(`${newEmployee.name} Responded: ${employeeResponse}`),
+      JSON.stringify(allResponses),
     ];
     console.log("");
     console.log(`====== ${employee.name} ======`);
@@ -55,11 +63,11 @@ const employeeRequest = async (request: string[], employee: AgentType) => {
 
   // Handling final report
   else if (status === "provideFinalReport") {
-    const report = response.report;
+    const report = JSON.stringify(response.report);
     console.log(`📝 Documenting findings and reporting back`);
-    debugLog("Report", report.toString());
+    debugLog("Report", report);
     if (!report) throw new Error("No report in response");
-    return report.toString();
+    return report;
   }
 
   // Handling end of operations
